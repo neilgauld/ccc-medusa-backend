@@ -173,6 +173,15 @@ export default async function setupCcc({ container }: ExecArgs) {
     await linkSalesChannelsToApiKeyWorkflow(container).run({ input: { id: key.id, add: [channel.id] } })
     log("publishable key created")
   }
+  // Optional fixed key, so the storefront can be configured before the first start.
+  // Publishable keys are public by design (every shopper's browser receives one).
+  const wantedToken = process.env.CCC_PUBLISHABLE_KEY
+  if (wantedToken && /^pk_[a-zA-Z0-9]{20,}$/.test(wantedToken) && (key as any).token !== wantedToken) {
+    const pg = container.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
+    await pg("api_key").where({ id: (key as any).id }).update({ token: wantedToken, redacted: wantedToken.slice(0, 6) + "***" + wantedToken.slice(-3) })
+    ;(key as any).token = wantedToken
+    log("publishable key set to the value of CCC_PUBLISHABLE_KEY")
+  }
   log(`PUBLISHABLE_KEY=${(key as any).token}`)
 
   // Products
